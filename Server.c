@@ -30,14 +30,12 @@ char command[DEFAULT_BUFLEN];
 	char error[256]="wrong command"; 
 
     
-    		while((client =recv(fd, command, strlen(command), 0)) >0 )
-    		{
-    		
-				if (strcmp(command,"LIST") ==0)
-    			{
-
-     		
-
+    		while((client =recv(fd, command, DEFAULT_BUFLEN - 1, 0)) >0 )
+    {
+        command[client] = '\0'; // add null terminator
+        if (strcmp(command,"LIST\n") ==0)
+        {
+        
      		     
          	DIR *pDIR;
     struct dirent *pDirEnt;
@@ -131,8 +129,5 @@ int main(int argc ,char *argv[])
        close(listenfd);
     
     return 0;
-    }
-    
-   
-  
+    } 
         	
