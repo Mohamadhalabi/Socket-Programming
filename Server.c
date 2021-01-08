@@ -1,15 +1,12 @@
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <errno.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <errno.h>
 #include <dirent.h>
-#include <pthread.h>
 
 
 #define PORT 1888
@@ -25,19 +22,70 @@ typedef struct
 
 
 
-void process(int socket);
-void command(int sid,char *str);
+void do_job(int fd)
+{
+int length,rcnt,client,listenfd;
+char command[DEFAULT_BUFLEN];
+	char newline='\n'; //
+	char error[256]="wrong command"; 
 
+    
+    		while((client =recv(fd, command, strlen(command), 0)) >0 )
+    		{
+    		
+				if (strcmp(command,"LIST") ==0)
+    			{
+
+     		
+
+     		     
+         	DIR *pDIR;
+    struct dirent *pDirEnt;
+
+    /* Open the current directory */
+	int rv;
+    pDIR = opendir(".");
+
+    if ( pDIR == NULL ) {
+        fprintf( stderr, "%s %d: opendir() failed (%s)\n",
+                __FILE__, __LINE__, strerror( errno ));
+        exit( -1 );
+    }
+
+    /* Get each directory entry from pDIR and print its name */
+
+    pDirEnt = readdir( pDIR );
+    while ( pDirEnt != NULL ) {
+        pDirEnt = readdir( pDIR );
+       rv =send( fd,pDirEnt->d_name,strlen(pDirEnt->d_name),0);
+       if (rv !=pDirEnt->d_name)
+       rv=send(fd,&newline,1,0);
+    }
+
+    /* Release the open directory */
+
+    closedir( pDIR );
+   }
+   }
+    close(client);
+    
+    
+}
 
 
 int main(int argc ,char *argv[])
 {
+
+
 	struct sockaddr_in addr;
-	int listenfd, addr_size,client;
-	
-	char Message[256]="Welcome to mohamad's file server\n",buffer[DEFAULT_BUFLEN];  
+	struct sockaddr_in remote_addr;
+	int listenfd, addr_size,client,length,fd;
+	char command[DEFAULT_BUFLEN];
+	char Message[256]="Welcome to mohamad's file server\n",buffer[DEFAULT_BUFLEN];
+	char client_message[256];  
 	connection_t * connection;
 	pthread_t thread;
+	pid_t pid;
 			
 	listenfd = socket(AF_INET,SOCK_STREAM,0);
 	
@@ -59,73 +107,32 @@ int main(int argc ,char *argv[])
 
 	
 	
-	while(1)
-	{
-		connection = (connection_t *)malloc(sizeof(connection_t));
-       		 connection->sock = accept(listenfd, &connection->address, &connection->addr_len);
-		
-		if (connection->sock <= 0)
-		{
-			free(connection);
-		}
-		else
-		{
-		pthread_create(&thread,NULL,(void *) &process,(void *)connection);
-			
-        	}
-       }
+	while(1) {  // main accept() loop
+    length = sizeof remote_addr;
+    if ((fd = accept(listenfd, (struct sockaddr *)&remote_addr, \
+          &length)) == -1) {
+          perror("Accept Problem!");
+          continue;
+    }
+
+    printf("Server: got connection from %s\n", \
+            inet_ntoa(remote_addr.sin_addr));
+
+    /* If fork create Child, take control over child and close on server side */
+    if ((pid=fork()) == 0) {
+        close(listenfd);
+        do_job(fd);
+        printf("Child finished their job!\n");
+        close(fd);
+        exit(0);
+    }
+
+} 
+       close(listenfd);
     
     return 0;
     }
     
-    void process (int socket) {
-	char buf[SIZE];
-	bzero(buf, SIZE);
-	read(socket, buf, SIZE);		
-	command(socket, buf);	
-    }
-    
-    
-    
-    void command(int sid,char *str){
-    
-    	int select;
-    	char *e="Invalid command. \n";
-    	
-    	if(strncmp(str,"LIST",4)==0)
-    		select=1;
-    	else if(strncmp(str,"GET",3)==0)
-    		select=2;
-    	else if(strncmp(str,"PUT",3)==0)
-    		select=3;
-    	else if(strncmp(str,"DEL",3)==0)
-    		select=4;
-    	else if(strncmp(str,"QUIT",4)==0)
-    		select=5;
-    	else
-    		select=0;
-    	switch(select){
-    		case 1:
-    			list(sid,str);
-    			break;
-    		case 2:
-    			get(sid,str);
-    			break;
-    		case 3:
-    			put(sid,str);
-    			break;
-    		case 4:
-    			del(sid,str);
-    			break;
-    		case 5:
-    			quit(sid,str);
-    			break;
-    		default:
-    			printf("invalid command\n");
-    			write(sid, e, strlen(e));
-    		}
-    	}
-    			
-    	
-    	
+   
+  
         	
