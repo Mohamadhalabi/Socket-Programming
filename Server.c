@@ -7,85 +7,76 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <dirent.h>
-
+#include <sys/stat.h>
 
 #define PORT 1888
 #define DEFAULT_BUFLEN 2000
-#define SIZE 1024
-
-typedef struct
-{
-	int sock;
-	struct sockaddr address;
-	int addr_len;
-} connection_t;
 
 
 
 
 void do_job(int fd)
 {
-int length,rcnt,client,listenfd ,n ;
+int length,rcnt,client,listenfd ,rv;
 char command[DEFAULT_BUFLEN];
-	char newline='\n'; 
-	char error[256]="wrong command"; 
-    
+	char newline='\n';
+ char directory[DEFAULT_BUFLEN];
     		while((client =recv(fd, command, DEFAULT_BUFLEN - 1, 0)) >0 )
     {
-        command[client] = '\0'; // add null terminator
-        if (strcmp(command,"LIST\n") ==0)
-        {
+        command[client] = '\0';
         
-     		     
-         	DIR *pDIR;
-    struct dirent *pDirEnt;
+        if (strcmp(command,"LIST\n") ==0)
+        {	   
+    struct stat file_stats;
+    DIR *dirp;
+    struct dirent* dent;
 
-    /* Open the current directory */
-	int rv;
-    pDIR = opendir(".");
+    dirp=opendir("."); 
+    do {
+        dent = readdir(dirp);
+        if (dent)
+        {
+        	//rv=send(fd,&file_stats.st_size,sizeof(file_stats.st_size),0);
+		rv=send(fd,dent->d_name,strlen(dent->d_name),0);
+       	if (!stat(dent->d_name,&file_stats)){
+           	 rv=send(fd,&newline,1,0);
 
-    if ( pDIR == NULL ) {
-        fprintf( stderr, "%s %d: opendir() failed (%s)\n",
-                __FILE__, __LINE__, strerror( errno ));
-        exit( -1 );
-    }
-
-    /* Get each directory entry from pDIR and print its name */
-
-    pDirEnt = readdir( pDIR );
-    while ( pDirEnt != NULL ) {
-        pDirEnt = readdir( pDIR );
-       rv =send(fd,pDirEnt->d_name,strlen(pDirEnt->d_name),0);
-       if (rv !=pDirEnt->d_name)
-       rv=send(fd,&newline,1,0);
+            }
+            else
+            {
+                printf("(stat() failed for this file)\n");
+            }
+        }
+    } while (dent);
+    closedir(dirp);
+}
        
-    }
-
-    /* Release the open directory */
-
-    closedir( pDIR );
-   }
+    
    
-   else if(strncmp(command,"GET\n",3)==0)
-   {
-     FILE * fPtr;
-    int rv;
+  else if(strncmp(command,"GET\n",3)==0)
+   { 
+
+
+int i= strlen(command)-5 ;
+
+
+	char subbuf[DEFAULT_BUFLEN];
+	memcpy(subbuf,&command[4],i);
+	subbuf[i]='\0';
+	printf("%s",subbuf);
+FILE * fPtr;
+
     char buffer[DEFAULT_BUFLEN];
     int totalRead = 0;
 
 
-    /* 
-     * Open file in r (read) mode. 
-     * "data/file2.txt" is complete file path to read
-     */
-    fPtr = fopen("a.ini", "r");
+    fPtr = fopen(subbuf, "r");
 
 
     /* fopen() return NULL if last operation was unsuccessful */
     if(fPtr == NULL)
     {
         /* Unable to open file hence exit */
-        printf("Unable to open file.\n");
         printf("Please check whether file exists and you have read privilege.\n");
         exit(EXIT_FAILURE);
     }
@@ -101,38 +92,42 @@ char command[DEFAULT_BUFLEN];
         /* Total character read count */
         totalRead = strlen(buffer);
 
+
+        /*
+         * Trim new line character from last if exists.
+         */
         buffer[totalRead - 1] = buffer[totalRead - 1] == '\n' 
                                     ? '\0' 
                                     : buffer[totalRead - 1];
-       
+
+
         /* Print line read on cosole*/
-        printf("%s\n", buffer);
-
+	send(fd,buffer,strlen(buffer),0);
         
-      rv=send(fd,buffer,strlen(buffer),0);
-      if (rv !=buffer)
-       rv=send(fd,&newline,1,0);
-
-    } 
+        }
 
 
-    /* Done with this file, close file to release resource */
-    fclose(fPtr);
 
-        
-   }
-   
-   }
-   
-   
-   
-   
-   
-    close(client);
+
     
-    
+  
+}  
+
+ 
+
+  
+  
+  
+  
+  
+ 
+  
+  
+  
+  } 
+    close(client); 
+
 }
-
 
 int main(int argc ,char *argv[])
 {
@@ -144,8 +139,6 @@ int main(int argc ,char *argv[])
 	char command[DEFAULT_BUFLEN];
 	char Message[256]="Welcome to mohamad's file server\n",buffer[DEFAULT_BUFLEN];
 	char client_message[256];  
-	connection_t * connection;
-	pthread_t thread;
 	pid_t pid;
 			
 	listenfd = socket(AF_INET,SOCK_STREAM,0);
