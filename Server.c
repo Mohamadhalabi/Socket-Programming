@@ -22,13 +22,13 @@ typedef struct
 
 
 
+
 void do_job(int fd)
 {
-int length,rcnt,client,listenfd;
+int length,rcnt,client,listenfd ,n ;
 char command[DEFAULT_BUFLEN];
-	char newline='\n'; //
+	char newline='\n'; 
 	char error[256]="wrong command"; 
-
     
     		while((client =recv(fd, command, DEFAULT_BUFLEN - 1, 0)) >0 )
     {
@@ -55,16 +55,79 @@ char command[DEFAULT_BUFLEN];
     pDirEnt = readdir( pDIR );
     while ( pDirEnt != NULL ) {
         pDirEnt = readdir( pDIR );
-       rv =send( fd,pDirEnt->d_name,strlen(pDirEnt->d_name),0);
+       rv =send(fd,pDirEnt->d_name,strlen(pDirEnt->d_name),0);
        if (rv !=pDirEnt->d_name)
        rv=send(fd,&newline,1,0);
+       
     }
 
     /* Release the open directory */
 
     closedir( pDIR );
    }
+   
+   else if(strncmp(command,"GET\n",3)==0)
+   {
+     FILE * fPtr;
+    int rv;
+    char buffer[DEFAULT_BUFLEN];
+    int totalRead = 0;
+
+
+    /* 
+     * Open file in r (read) mode. 
+     * "data/file2.txt" is complete file path to read
+     */
+    fPtr = fopen("a.ini", "r");
+
+
+    /* fopen() return NULL if last operation was unsuccessful */
+    if(fPtr == NULL)
+    {
+        /* Unable to open file hence exit */
+        printf("Unable to open file.\n");
+        printf("Please check whether file exists and you have read privilege.\n");
+        exit(EXIT_FAILURE);
+    }
+
+
+    /* File open success message */
+    printf("File opened successfully. Reading file contents line by line. \n\n");
+
+
+    /* Repeat this until read line is not NULL */
+    while(fgets(buffer, DEFAULT_BUFLEN, fPtr) != NULL) 
+    {
+        /* Total character read count */
+        totalRead = strlen(buffer);
+
+        buffer[totalRead - 1] = buffer[totalRead - 1] == '\n' 
+                                    ? '\0' 
+                                    : buffer[totalRead - 1];
+       
+        /* Print line read on cosole*/
+        printf("%s\n", buffer);
+
+        
+      rv=send(fd,buffer,strlen(buffer),0);
+      if (rv !=buffer)
+       rv=send(fd,&newline,1,0);
+
+    } 
+
+
+    /* Done with this file, close file to release resource */
+    fclose(fPtr);
+
+        
    }
+   
+   }
+   
+   
+   
+   
+   
     close(client);
     
     
@@ -129,5 +192,7 @@ int main(int argc ,char *argv[])
        close(listenfd);
     
     return 0;
-    } 
-        	
+    }
+    
+   
+  
