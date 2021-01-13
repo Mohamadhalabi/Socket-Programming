@@ -106,7 +106,7 @@ int i= strlen(command)-5 ;
 
     if(fPtr == NULL)
     {
-	    char Messagee="can't open folder";
+	    char Messagee[256]="file does not exists";
 	send(fd,Messagee,strlen(Messagee),0);
     
     }
