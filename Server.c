@@ -104,10 +104,11 @@ int i= strlen(command)-5 ;
     fPtr = fopen(subbuf, "r");
 
 
-    /* fopen() return NULL if last operation was unsuccessful */
     if(fPtr == NULL)
     {
-        /* Unable to open file hence exit */
+	    char Messagee="can't open folder";
+	send(fd,Messagee,strlen(Messagee),0);
+    
     }
 
 
